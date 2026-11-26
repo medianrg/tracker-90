@@ -3,7 +3,7 @@ import { send, readJson, isAuthed, saveSubscription, sendToAll } from '../lib/co
 // POST {subscription} -> salvează telefonul pentru notificări.
 // POST {test: true} -> trimite o notificare de test.
 export default async function handler(req, res) {
-  if (!isAuthed(req)) return send(res, 401, { error: 'Nu ești logat.' });
+  if (!(await isAuthed(req))) return send(res, 401, { error: 'Nu ești logat.' });
   if (req.method !== 'POST') return send(res, 405, { error: 'Metodă nepermisă.' });
   const body = await readJson(req);
   if (body?.test) {

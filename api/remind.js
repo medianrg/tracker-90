@@ -2,11 +2,11 @@ import { send, query, hasToken, allDocs, todayLocal, hourLocal, weekdayLocal, re
 
 // Trimite mementoul potrivit orei: dimineața (rutina), la prânz (mersul), seara (bifatul).
 // Pornit de cron-urile din vercel.json sau de un serviciu extern (cron-job.org) la ore exacte.
-// Autorizare: header "Authorization: Bearer <CRON_SECRET>" (Vercel îl trimite singur) sau ?key=<CRON_SECRET>.
+// Autorizare: cheia pentru mementouri (din aplicație, la Plan → Legături) ca ?key=... sau "Authorization: Bearer ...".
+// Cron-ul Vercel e acceptat după user-agent; cel mult o notificare pe moment al zilei, deci nu se poate abuza.
 export default async function handler(req, res) {
-  if (!process.env.CRON_SECRET) return send(res, 500, { error: 'Lipsește variabila CRON_SECRET în Vercel.' });
-  if (!hasToken(req, 'CRON_SECRET')) return send(res, 401, { error: 'Neautorizat.' });
   const fromVercel = String(req.headers['user-agent'] || '').startsWith('vercel-cron');
+  if (!(await hasToken(req, 'cron')) && !fromVercel) return send(res, 401, { error: 'Neautorizat.' });
   if (fromVercel && process.env.DISABLE_VERCEL_CRON === '1') return send(res, 200, { skipped: 'vercel-cron oprit' });
   const q = query(req);
   const h = hourLocal();
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   const date = todayLocal();
   const msg = reminderFor(slot, await allDocs(), date, weekdayLocal());
   if (!msg) return send(res, 200, { skipped: 'nimic de trimis', slot, date });
-  if (q.force !== '1' && !(await markSent(date, slot))) return send(res, 200, { skipped: 'deja trimis azi', slot, date });
+  if (!(await markSent(date, slot))) return send(res, 200, { skipped: 'deja trimis azi', slot, date });
   const r = await sendToAll({ ...msg, url: '/' });
   return send(res, 200, { slot, date, ...r });
 }

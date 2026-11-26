@@ -129,6 +129,11 @@ textarea{min-height:88px;resize:vertical}
 .idea time{color:var(--mute);font-size:13px;white-space:nowrap}
 .empty{color:var(--mute);margin:12px 0 0}
 .copybox{width:100%;min-height:220px;margin-top:12px;font-size:14px}
+.cfg{border-top:1px solid var(--line);padding:10px 0}
+.cfg b{display:block;font-size:14px}
+.cfg code{display:block;font-size:13px;overflow-wrap:anywhere;margin:4px 0 6px;color:var(--mute)}
+.steps-guide{margin:8px 0 0;padding-left:1.3em;font-size:14px}
+.steps-guide li{margin:4px 0}
 .login{position:fixed;inset:0;z-index:40;background:var(--band);display:grid;place-items:center;padding:max(24px,env(safe-area-inset-top,0px)) 16px 24px}
 .login[hidden]{display:none}
 .login form{width:min(380px,100%)}
@@ -141,11 +146,12 @@ textarea{min-height:88px;resize:vertical}
 <body>
 <div class="login" id="login" hidden>
   <form class="card" id="loginform">
-    <h2>Tracker 90</h2>
-    <p class="hint" style="margin:0 0 4px">Introdu parola aplicației. Pe fiecare telefon îți ceri o singură dată.</p>
+    <h2 id="logintitle">Tracker 90</h2>
+    <p class="hint" id="loginhint" style="margin:0 0 4px">Introdu parola aplicației. Pe fiecare telefon ți-o cere o singură dată.</p>
     <label class="lbl" for="pw">Parola</label>
     <input type="password" id="pw" autocomplete="current-password" required>
-    <button class="btn" type="submit">Intră</button>
+    <div id="pw2wrap" hidden><label class="lbl" for="pw2">Scrie parola încă o dată</label><input type="password" id="pw2" autocomplete="new-password"></div>
+    <button class="btn" type="submit" id="loginbtn">Intră</button>
     <p class="status warn" id="loginerr" style="margin:10px 0 0"></p>
   </form>
 </div>
@@ -246,7 +252,14 @@ textarea{min-height:88px;resize:vertical}
   </section>
 
   <section class="view" id="v-plan">
-    <div class="card" style="margin-bottom:16px"><h2>Notificări</h2><p id="notiftext">Se verifică…</p><div class="row" id="notifbtns"></div></div>
+    <div class="cols" style="margin-bottom:16px">
+      <div class="card"><h2>Notificări</h2><p id="notiftext">Se verifică…</p><div class="row" id="notifbtns"></div></div>
+      <div class="card"><h2>Pașii din Health</h2>
+        <p class="hint" style="margin:0 0 12px">Pentru automatizarea din Shortcuts care trimite pașii în fiecare seară. Codul e doar al tău, nu-l trimite nimănui.</p>
+        <button class="btn ghost" id="showcfg">Arată adresa și codul</button>
+        <div id="cfgbox" hidden></div>
+      </div>
+    </div>
     <div class="cols">
       <div class="card"><h2>Sprinturile</h2><div id="sprintlist"></div></div>
       <div class="stackcol">
@@ -347,11 +360,19 @@ async function api(path,opts){
   let data=null;try{data=await r.json()}catch(e){}
   return {ok:r.ok,status:r.status,data};
 }
-function showLogin(){$('login').hidden=false;setTimeout(()=>{try{$('pw').focus()}catch(e){}},50)}
+let setupMode=false;
+function showLogin(setup){
+  setupMode=!!setup;
+  $('logintitle').textContent=setupMode?'Alege o parolă':'Tracker 90';
+  $('loginhint').textContent=setupMode?'E prima pornire. Alegi parola aplicației, de cel puțin 8 caractere. Pe fiecare telefon ți-o cere o singură dată.':'Introdu parola aplicației. Pe fiecare telefon ți-o cere o singură dată.';
+  $('pw2wrap').hidden=!setupMode;$('pw').autocomplete=setupMode?'new-password':'current-password';
+  $('loginbtn').textContent=setupMode?'Salvează parola și intră':'Intră';
+  $('login').hidden=false;setTimeout(()=>{try{$('pw').focus()}catch(e){}},50);
+}
 async function load(){
   if(Object.keys(pend).length)return;
   let r;try{r=await api('/api/data')}catch(e){status('Fără internet. Vezi ultimele date salvate pe telefon.',true);return}
-  if(r.status===401){showLogin();return}
+  if(r.status===401){showLogin(r.data&&r.data.setup);return}
   if(!r.ok||!r.data){status('Serverul nu răspunde acum. Mai încearcă puțin mai târziu.',true);return}
   vapidKey=r.data.vapidPublicKey||null;
   const n=empty();for(const [id,v] of Object.entries(r.data.docs||{}))apply(n,id,v);for(const id in pend)apply(n,id,pend[id]);
@@ -512,7 +533,7 @@ async function renderNotif(){
   $('installhint').hidden=!(isIOS&&!isStandalone());
   if(isIOS&&!isStandalone()){t.textContent='Pe iPhone, notificările merg doar din aplicația de pe ecranul principal. În Safari: Share, apoi Add to Home Screen, și o deschizi de pe iconiță.';b.innerHTML='';return}
   if(!('serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window)){t.textContent='Browserul ăsta nu primește notificări push.';b.innerHTML='';return}
-  if(!vapidKey){t.textContent='Pe server lipsesc cheile pentru notificări (VAPID_PUBLIC_KEY și VAPID_PRIVATE_KEY în Vercel).';b.innerHTML='';return}
+  if(!vapidKey){t.textContent='Cheile pentru notificări nu sunt gata încă. Închide și redeschide aplicația.';b.innerHTML='';return}
   if(Notification.permission==='denied'){t.textContent='Notificările sunt blocate. Le pornești din Setări, Notificări, Tracker 90.';b.innerHTML='';return}
   let sub=null;try{const reg=await swReady();sub=await reg.pushManager.getSubscription()}catch(e){}
   if(sub&&Notification.permission==='granted'){t.textContent='Pornite: rutina dimineața, mersul la prânz, bifatul seara.';b.innerHTML='<button class="btn ghost" id="ntest">Trimite o notificare de test</button>'}
@@ -572,10 +593,28 @@ $('copysum').addEventListener('click',async()=>{
 $('logout').addEventListener('click',async()=>{try{await api('/api/login',{method:'DELETE'})}catch(e){}try{localStorage.removeItem('tracker90-cache')}catch(e){}S=empty();render();showLogin()});
 $('loginform').addEventListener('submit',async e=>{
   e.preventDefault();$('loginerr').textContent='';
-  let r;try{r=await api('/api/login',{method:'POST',body:JSON.stringify({password:$('pw').value})})}catch(err){$('loginerr').textContent='Fără internet.';return}
-  if(!r.ok){$('loginerr').textContent=(r.data&&r.data.error)||'Nu merge.';return}
-  $('pw').value='';$('login').hidden=true;load();
+  const pw=$('pw').value;
+  if(setupMode){if(pw.length<8){$('loginerr').textContent='Parola trebuie să aibă cel puțin 8 caractere.';return}if(pw!==$('pw2').value){$('loginerr').textContent='Cele două parole nu sunt la fel.';return}}
+  let r;try{r=await api('/api/login',{method:'POST',body:JSON.stringify({password:pw,setup:setupMode})})}catch(err){$('loginerr').textContent='Fără internet.';return}
+  if(!r.ok){if(r.data&&r.data.setup!==undefined&&!!r.data.setup!==setupMode)showLogin(r.data.setup);else if(r.status===409&&setupMode)showLogin(false);$('loginerr').textContent=(r.data&&r.data.error)||'Nu merge.';return}
+  $('pw').value='';$('pw2').value='';$('login').hidden=true;if(r.data&&r.data.created)status('Parola e salvată. De acum intri cu ea.');load();
 });
+async function copyText(t){try{await navigator.clipboard.writeText(t);status('Copiat.');return true}catch(e){status('Nu pot copia automat: selectează textul și copiază-l.',true);return false}}
+$('showcfg').addEventListener('click',async()=>{
+  const box=$('cfgbox');
+  if(!box.hidden){box.hidden=true;$('showcfg').textContent='Arată adresa și codul';return}
+  let r;try{r=await api('/api/config')}catch(e){status('Fără internet.',true);return}
+  if(r.status===401){showLogin(false);return}
+  if(!r.ok||!r.data){status('Nu s-au putut încărca datele.',true);return}
+  const c=r.data;
+  box.innerHTML='<div class="cfg"><b>Adresa (URL)</b><code>'+esc(c.stepsUrl)+'</code><button class="btn ghost" data-copy="'+esc(c.stepsUrl)+'">Copiază adresa</button></div>'+
+    '<div class="cfg"><b>Valoarea pentru Authorization</b><code>Bearer '+esc(c.stepsToken)+'</code><button class="btn ghost" data-copy="'+esc('Bearer '+c.stepsToken)+'">Copiază valoarea</button></div>'+
+    '<ol class="steps-guide"><li>Shortcuts → Automation → + → Time of Day → 21:30, Daily → Run Immediately → New Blank Automation.</li><li>Find Health Samples: Type is Steps, Start Date is Today.</li><li>Calculate Statistics: Sum.</li><li>Get Contents of URL: adresa de mai sus, Method POST, Header Authorization cu valoarea de mai sus, Request Body JSON cu cheia steps (Number) = Statistics.</li><li>Rulezi o dată de mână ca test. În Azi, la Pași, apare „Din Health”.</li></ol>'+
+    '<details class="cfg"><summary>Opțional: mementouri la oră fixă (cron-job.org)</summary><p class="hint">Câte un job pentru 07:00, 12:30 și 21:30, fus orar Europe/Bucharest:</p>'+
+    c.remindUrls.map((u,i)=>'<code>'+esc(u)+'</code><button class="btn ghost" data-copy="'+esc(u)+'">Copiază '+['dimineața','prânzul','seara'][i]+'</button>').join('')+'</details>';
+  box.hidden=false;$('showcfg').textContent='Ascunde';
+});
+$('cfgbox').addEventListener('click',e=>{const b=e.target.closest('[data-copy]');if(b)copyText(b.dataset.copy)});
 const tip=e=>{if(!geo)return;const r=e.currentTarget.getBoundingClientRect(),i=Math.floor((e.clientX-r.left-geo.L)/geo.bw);if(i<0||i>=TOTAL)return;const o=geo.vals[i];$('r-steps').textContent=longDate(o.s)+': '+(o.v===null?'nimic notat':fmt(o.v)+' pași')+' · ținta '+fmt(target(Math.floor(i/7)+1));};
 $('f-steps').addEventListener('pointermove',tip);$('f-steps').addEventListener('click',tip);
 const ro=new ResizeObserver(()=>{drawSteps();drawWeight()});ro.observe($('f-steps'));ro.observe($('f-w'));

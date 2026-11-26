@@ -1,11 +1,14 @@
-import { send, readJson, isAuthed, allDocs, setDoc, DOC_ID, todayLocal, vapid } from '../lib/core.js';
+import { send, readJson, isAuthed, authState, allDocs, setDoc, DOC_ID, todayLocal, vapid } from '../lib/core.js';
 
 // GET -> toate datele. POST {id, value} -> salvează un document (value: null îl șterge).
 export default async function handler(req, res) {
-  if (!isAuthed(req)) return send(res, 401, { error: 'Nu ești logat.' });
+  if (!(await isAuthed(req))) {
+    const st = await authState();
+    return send(res, 401, { error: 'Nu ești logat.', setup: st.mode === 'unset' });
+  }
   if (req.method === 'GET') {
-    const docs = await allDocs();
-    return send(res, 200, { docs, today: todayLocal(), vapidPublicKey: vapid()?.publicKey || null });
+    const [docs, v] = await Promise.all([allDocs(), vapid()]);
+    return send(res, 200, { docs, today: todayLocal(), vapidPublicKey: v?.publicKey || null });
   }
   if (req.method === 'POST') {
     const body = await readJson(req);

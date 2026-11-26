@@ -1,10 +1,9 @@
 // Server local pentru teste: servește public/ și rulează funcțiile din api/ cu o bază de date în memorie.
-// Pornire: npm run dev  ->  http://localhost:8790  (parola locală: "test")
+// Pornire: npm run dev  ->  http://localhost:8790  (la prima deschidere îți alegi parola)
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as webpush from 'web-push';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const PORT = Number(process.env.PORT || 8790);
@@ -16,18 +15,11 @@ class MemRedis {
   async hget(k, f) { const m = this.h.get(k); return m && m.has(f) ? m.get(f) : null; }
   async hset(k, obj) { const m = this.m(k); for (const [f, v] of Object.entries(obj)) m.set(f, v); return Object.keys(obj).length; }
   async hdel(k, ...fs) { const m = this.h.get(k); let n = 0; if (m) for (const f of fs) if (m.delete(f)) n++; return n; }
+  async get(k) { return this.h.has('s:' + k) ? this.h.get('s:' + k) : null; }
+  async set(k, v, o = {}) { if (o.nx && this.h.has('s:' + k)) return null; this.h.set('s:' + k, v); return 'OK'; }
 }
 globalThis.__T90_REDIS__ = new MemRedis();
-
-// Valori doar pentru testul local. În Vercel le pui tu în Environment Variables.
-process.env.APP_PASSWORD ||= 'test';
-process.env.STEPS_TOKEN ||= 'local-steps-token';
-process.env.CRON_SECRET ||= 'local-cron-secret';
-if (!process.env.VAPID_PUBLIC_KEY) {
-  const k = webpush.generateVAPIDKeys();
-  process.env.VAPID_PUBLIC_KEY = k.publicKey;
-  process.env.VAPID_PRIVATE_KEY = k.privateKey;
-}
+// Local, ca în Vercel: parola o alegi la prima deschidere, cheile se generează singure.
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.json': 'application/json' };
 
@@ -49,4 +41,4 @@ http.createServer(async (req, res) => {
     res.statusCode = e.code === 'ENOENT' || e.code === 'ERR_MODULE_NOT_FOUND' ? 404 : 500;
     res.end(res.statusCode === 404 ? 'Not found' : String(e));
   }
-}).listen(PORT, () => console.log(`Tracker 90 local: http://localhost:${PORT} (parola: ${process.env.APP_PASSWORD})`));
+}).listen(PORT, () => console.log(`Tracker 90 local: http://localhost:${PORT} (la prima deschidere îți alegi parola)`));

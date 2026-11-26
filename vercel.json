@@ -1,4 +1,5 @@
 {
+  "regions": ["fra1"],
   "crons": [
     { "path": "/api/remind?slot=morning", "schedule": "0 5 * * *" },
     { "path": "/api/remind?slot=lunch", "schedule": "0 10 * * *" },
