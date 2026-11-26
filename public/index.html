@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tracker 90 de zile</title>
+<meta name="theme-color" content="#0c4a52">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tracker 90">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE everyday: a personal training log, calm, direct, encouraging
+   IDEA a runner's logbook for 13 weeks: every day is a square that fills as the day gets done
+   PICTURE the 91-day grid in the top band, sprints marked under it, today ringed in coral
+   COLOUR deep teal band to the edges, white ground, slate blue for data, coral for today and the key number
+   TYPE Manrope 800 for numbers and titles, Manrope 400/600 for text
+   LAYOUT phone: band (day, sprint, grid), sticky tabs, one column of cards; laptop: title left, grid right, cards in two columns */
+:root{color-scheme:light dark;--bg:#ffffff;--panel:#ffffff;--soft:#e8f1f3;--ink:#0f2229;--mute:#52707a;--line:#d4e2e5;--band:#0c4a52;--bandink:#effcfa;--bandmute:#a9d6d2;--slate:#2f5487;--ok:#0f766e;--coral:#ef5130}
+@media (prefers-color-scheme:dark){:root{--bg:#0a1519;--panel:#0f2029;--soft:#183039;--ink:#e3eef0;--mute:#93abb3;--line:#26414b;--band:#08363c;--slate:#86a9df;--ok:#4fd1c0;--coral:#ff7a5c}}
+*{box-sizing:border-box;min-width:0}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Manrope,system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:clip}
+body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:var(--band);z-index:30}
+.band{background:var(--band);color:var(--bandink);padding:calc(clamp(22px,4vw,48px) + env(safe-area-inset-top,0px)) max(5vw,16px) 22px}
+.bandin{max-width:1100px;margin:0 auto;display:grid;gap:22px;grid-template-columns:minmax(0,1fr)}
+h1{font-size:clamp(40px,8vw,64px);line-height:1.02;letter-spacing:-.03em;margin:0;font-weight:800;text-wrap:balance}
+.sub{color:var(--bandmute);margin:8px 0 0;font-size:16px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chip{background:rgba(255,255,255,.1);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;white-space:nowrap}
+.chip b{color:#fff;font-weight:800}
+.grid{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));grid-template-rows:repeat(7,auto);grid-auto-flow:column;gap:4px;max-width:620px}
+.cell{aspect-ratio:1;border-radius:4px;background:rgba(255,255,255,.1);border:0;padding:0;cursor:pointer}
+.cell:disabled{background:rgba(255,255,255,.04);cursor:default}
+.cell.today{outline:2px solid var(--coral);outline-offset:1px}
+.cell.sel{box-shadow:inset 0 0 0 2px #fff}
+.sprints{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));gap:4px;margin-top:8px;font-size:13px;color:var(--bandmute);max-width:620px}
+.sprints span{grid-column:span 2;border-top:2px solid rgba(255,255,255,.25);padding-top:4px;white-space:nowrap;overflow:hidden}
+.sprints span:last-child{grid-column:span 1}
+.sprints span.cur{border-color:var(--coral);color:#fff;font-weight:700}
+.legend{font-size:13px;color:var(--bandmute);margin:8px 0 0;max-width:620px}
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.tabsin{max-width:1100px;margin:0 auto;display:flex;gap:2px;padding:0 max(5vw,16px);overflow-x:auto}
+.tab{flex:none;font:inherit;font-weight:700;font-size:15px;color:var(--mute);background:none;border:0;border-bottom:3px solid transparent;padding:10px 12px;min-height:48px;cursor:pointer}
+.tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--coral)}
+main{max-width:1100px;margin:0 auto;padding:16px max(5vw,16px) calc(64px + env(safe-area-inset-bottom,0px))}
+.view{display:none}
+.view.on{display:block}
+.cols{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.stackcol{display:grid;gap:16px;align-content:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.card h2{font-size:18px;line-height:1.25;margin:0 0 8px;font-weight:800;letter-spacing:-.01em}
+.card p{margin:0 0 10px}
+.status{font-size:13px;color:var(--mute);margin:0 0 10px;min-height:1.4em}
+.status.warn{color:var(--coral);font-weight:600}
+.notice{background:var(--soft);border-radius:12px;padding:12px 14px;margin:0 0 14px;font-size:15px}
+.datebar{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.datebar div{flex:1}
+.datebar strong{display:block;font-size:20px;font-weight:800;line-height:1.2}
+.datebar small{color:var(--mute);font-size:14px}
+.score{font-weight:800;font-size:15px;white-space:nowrap;color:var(--ok)}
+.iconbtn{flex:none;width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:20px;font-weight:700;cursor:pointer;line-height:1}
+.iconbtn:disabled{opacity:.35;cursor:default}
+.check{display:flex;align-items:center;gap:12px;min-height:50px;padding:6px 0;border-top:1px solid var(--line);cursor:pointer}
+.card h2+.check,.sprint .gata+.check{border-top:0}
+.check input{appearance:none;-webkit-appearance:none;width:26px;height:26px;border:2px solid var(--mute);border-radius:7px;flex:none;margin:0;display:grid;place-content:center;cursor:pointer;background:var(--panel)}
+.check input:checked{background:var(--ok);border-color:var(--ok)}
+.check input:checked::after{content:"";width:12px;height:7px;border-left:3px solid #fff;border-bottom:3px solid #fff;transform:translateY(-2px) rotate(-45deg)}
+.check small{display:block;color:var(--mute);font-size:13px;line-height:1.35}
+input[type=text],input[type=number],input[type=date],input[type=password],textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-height:46px}
+textarea{min-height:88px;resize:vertical}
+:focus-visible{outline:3px solid var(--coral);outline-offset:2px}
+.lbl{display:block;font-weight:700;font-size:14px;margin:14px 0 6px}
+.stepper{display:flex;gap:8px}
+.stepper input{text-align:center;font-weight:800;font-size:20px}
+.meter{height:10px;background:var(--soft);border-radius:99px;overflow:hidden;margin-top:12px}
+.meter i{display:block;height:100%;width:0;background:var(--slate);border-radius:99px}
+.meter.done i{background:var(--ok)}
+.hint{font-size:14px;color:var(--mute);margin:8px 0 0}
+.who p{margin:0}
+.who .ego{font-size:20px;font-weight:800;line-height:1.3}
+.who .fut{margin-top:6px;color:var(--mute)}
+.linkbtn{font:inherit;font-weight:700;color:var(--slate);background:none;border:0;padding:8px 0;cursor:pointer;text-decoration:underline;min-height:44px}
+.counter{display:flex;align-items:center;gap:10px;min-height:54px;border-top:1px solid var(--line)}
+.counter span{flex:1;font-weight:600}
+.counter output{min-width:2.4em;text-align:center;font-weight:800;font-size:19px;font-variant-numeric:tabular-nums}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5em,1fr));gap:12px;margin-bottom:16px}
+.kpi{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--panel)}
+.kpi span{display:block;font-size:14px;font-weight:600;color:var(--mute)}
+.kpi b{display:block;font-size:clamp(30px,6vw,40px);font-weight:800;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi small{color:var(--mute);font-size:13px}
+.kpi.lead b{color:var(--coral)}
+.fig{position:relative;height:230px;touch-action:pan-y}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.fig text{font:13px Manrope,system-ui,sans-serif;fill:var(--mute);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+.gl{stroke:var(--line);stroke-width:1}
+.b{fill:var(--slate)}
+.b.ok{fill:var(--ok)}
+.tgt{fill:none;stroke:var(--coral);stroke-width:2;stroke-dasharray:5 4}
+.ln{fill:none;stroke:var(--slate);stroke-width:3;stroke-linejoin:round}
+.dot{fill:var(--slate);stroke:var(--panel);stroke-width:2}
+.readout{font-size:14px;color:var(--mute);min-height:1.5em;margin:8px 0 0}
+.bar{display:grid;grid-template-columns:9em minmax(0,1fr) auto;gap:12px;align-items:center;min-height:44px}
+.bar .track{height:12px;background:var(--soft);border-radius:99px;overflow:hidden}
+.bar .track i{display:block;height:100%;background:var(--slate);border-radius:99px}
+.bar.full .track i{background:var(--ok)}
+.bar b{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:800}
+.sprint{border-top:1px solid var(--line);padding:14px 0 6px}
+.sprint:first-child{border-top:0;padding-top:0}
+.sprint.cur{border-left:4px solid var(--coral);padding-left:12px;margin-left:-16px}
+.sh{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;align-items:baseline}
+.sh h3{margin:0;font-size:17px;font-weight:800}
+.when{color:var(--mute);font-size:14px;white-space:nowrap}
+.gata{font-size:14px;margin:4px 0 4px;color:var(--mute)}
+.rules{margin:0;padding-left:1.3em}
+.rules li{margin:6px 0}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.row input{flex:1 1 12em}
+.btn{flex:none;font:inherit;font-weight:700;font-size:15px;min-height:46px;padding:0 16px;border-radius:10px;border:0;background:var(--slate);color:#fff;cursor:pointer;white-space:nowrap}
+.btn.ghost{background:none;color:var(--slate);border:1px solid var(--line)}
+.idea{display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);padding:8px 0}
+.idea p{flex:1;margin:0;overflow-wrap:anywhere}
+.idea time{color:var(--mute);font-size:13px;white-space:nowrap}
+.empty{color:var(--mute);margin:12px 0 0}
+.copybox{width:100%;min-height:220px;margin-top:12px;font-size:14px}
+.login{position:fixed;inset:0;z-index:40;background:var(--band);display:grid;place-items:center;padding:max(24px,env(safe-area-inset-top,0px)) 16px 24px}
+.login[hidden]{display:none}
+.login form{width:min(380px,100%)}
+.login .btn{width:100%;margin-top:14px}
+@media(min-width:760px){.cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}
+@media(min-width:880px){.bandin{grid-template-columns:minmax(0,5fr) minmax(0,7fr);align-items:end}}
+@media(prefers-reduced-motion:no-preference){.meter i,.bar .track i{transition:width .45s ease}}
+</style>
+</head>
+<body>
+<div class="login" id="login" hidden>
+  <form class="card" id="loginform">
+    <h2>Tracker 90</h2>
+    <p class="hint" style="margin:0 0 4px">Introdu parola aplicației. Pe fiecare telefon îți ceri o singură dată.</p>
+    <label class="lbl" for="pw">Parola</label>
+    <input type="password" id="pw" autocomplete="current-password" required>
+    <button class="btn" type="submit">Intră</button>
+    <p class="status warn" id="loginerr" style="margin:10px 0 0"></p>
+  </form>
+</div>
+<header class="band">
+  <div class="bandin">
+    <div>
+      <h1 id="headline">Ziua 1</h1>
+      <p class="sub" id="subline"></p>
+      <div class="chips">
+        <span class="chip" id="left"></span>
+        <span class="chip">Seria de victorii: <b id="streak">0</b></span>
+        <span class="chip">Cea mai lungă: <b id="best">0</b></span>
+      </div>
+    </div>
+    <div>
+      <div class="grid" id="grid" aria-label="Cele 13 săptămâni, zi cu zi"></div>
+      <div class="sprints" id="sprintline"></div>
+      <p class="legend">Fiecare pătrat e o zi, de luni până duminică. Se umple pe măsură ce bifezi. Atinge un pătrat ca să deschizi ziua.</p>
+    </div>
+  </div>
+</header>
+<nav class="tabs"><div class="tabsin" role="tablist">
+  <button class="tab" role="tab" id="t-azi" data-v="azi">Azi</button>
+  <button class="tab" role="tab" id="t-progres" data-v="progres">Progres</button>
+  <button class="tab" role="tab" id="t-plan" data-v="plan">Plan</button>
+  <button class="tab" role="tab" id="t-parcare" data-v="parcare">Parcare</button>
+</div></nav>
+<main>
+  <p class="status" id="status" role="status"></p>
+
+  <section class="view" id="v-azi">
+    <p class="notice" id="installhint" hidden>Ca să primești notificări, pune aplicația pe ecranul principal: în Safari apeși Share, apoi Add to Home Screen, și o deschizi de pe iconiță.</p>
+    <div class="datebar">
+      <button class="iconbtn" id="prev" aria-label="Ziua anterioară">‹</button>
+      <div><strong id="datelabel"></strong><small id="dateinfo"></small></div>
+      <span class="score" id="score"></span>
+      <button class="iconbtn" id="next" aria-label="Ziua următoare">›</button>
+    </div>
+    <div class="cols">
+      <div class="stackcol">
+        <div class="card who" id="who"></div>
+        <div class="card">
+          <h2>Dimineața</h2>
+          <label class="check"><input type="checkbox" id="c-breath"><span>Respirație, 3 minute<small>Numeri respirațiile de la 1 la 10 și o iei de la capăt</small></span></label>
+          <label class="check"><input type="checkbox" id="c-future"><span>Viitorul, scris într-un rând<small>Aceeași propoziție, la prezent</small></span></label>
+        </div>
+        <div class="card">
+          <h2>Victoria zilei</h2>
+          <input type="text" id="win" maxlength="200" placeholder="Un lucru mic din sprintul curent, sub 30 de minute">
+          <label class="check"><input type="checkbox" id="c-win"><span>Am făcut-o</span></label>
+        </div>
+        <div class="card">
+          <h2>Seara</h2>
+          <textarea id="note" maxlength="1000" placeholder="Ce a mers azi, sau ce ai câștigat din ce n-a mers"></textarea>
+        </div>
+      </div>
+      <div class="stackcol">
+        <div class="card">
+          <h2>Focus și mișcare</h2>
+          <label class="check"><input type="checkbox" id="c-focus"><span>Blocul de focus, 60 de minute<small>Alter ego pornit, doar livrabilul sprintului</small></span></label>
+          <label class="check"><input type="checkbox" id="c-walk"><span>Mers la prânz<small>20–30 de minute</small></span></label>
+          <label class="lbl" for="steps">Pași</label>
+          <div class="stepper">
+            <button class="iconbtn" id="sminus" aria-label="Scade 500 de pași">−</button>
+            <input type="number" id="steps" inputmode="numeric" min="0" step="100" placeholder="0">
+            <button class="iconbtn" id="splus" aria-label="Adaugă 500 de pași">+</button>
+          </div>
+          <div class="meter" id="smeter"><i></i></div>
+          <p class="hint" id="shint"></p>
+        </div>
+        <div class="card">
+          <h2 id="wktitle">Săptămâna</h2>
+          <label class="lbl" for="weight">Greutate, luni dimineață (kg)</label>
+          <input type="number" id="weight" inputmode="decimal" step="0.1" min="30" max="300">
+          <div id="counters"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-progres">
+    <div class="kpis">
+      <div class="kpi"><span>Pași, media pe 7 zile</span><b id="k-steps">—</b><small id="k-steps-t"></small></div>
+      <div class="kpi lead"><span>Greutate față de start</span><b id="k-w">—</b><small id="k-w-t"></small></div>
+      <div class="kpi"><span>Victorii făcute</span><b id="k-wins">0</b><small id="k-wins-t"></small></div>
+      <div class="kpi"><span>Zile cu rutina făcută</span><b id="k-rut">0</b><small>ținta: 70 din 90</small></div>
+    </div>
+    <div class="cols">
+      <div class="card"><h2 id="h-steps">Pași pe zi</h2><div class="fig" id="f-steps"><svg aria-hidden="true"></svg></div><p class="readout" id="r-steps">Atinge o bară ca să vezi ziua. Linia punctată e ținta.</p></div>
+      <div class="card"><h2 id="h-w">Greutate pe săptămâni</h2><div class="fig" id="f-w"><svg aria-hidden="true"></svg></div><p class="readout" id="r-w"></p></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Brandul, față de țintele de la ziua 90</h2><div id="brandbars"></div></div>
+    <div class="card" style="margin-top:16px"><h2>Bilanțul de duminică</h2>
+      <p class="hint" style="margin:0 0 12px">Copiezi rezumatul săptămânii și îl lipești în proiectul „Vreau Sa Fac Bani”, cu cuvântul „review”.</p>
+      <button class="btn" id="copysum">Copiază rezumatul săptămânii</button>
+      <textarea class="copybox" id="sumbox" readonly hidden></textarea>
+    </div>
+  </section>
+
+  <section class="view" id="v-plan">
+    <div class="card" style="margin-bottom:16px"><h2>Notificări</h2><p id="notiftext">Se verifică…</p><div class="row" id="notifbtns"></div></div>
+    <div class="cols">
+      <div class="card"><h2>Sprinturile</h2><div id="sprintlist"></div></div>
+      <div class="stackcol">
+        <div class="card"><h2>Regulile</h2>
+          <ol class="rules">
+            <li>Un singur proiect activ: oferta.</li>
+            <li>O idee nouă merge în parcare, nu în lucru.</li>
+            <li>Termenul sprintului nu se mută. Livrezi ce ai.</li>
+            <li>Orice lucru de construit primește cel mult o zi.</li>
+            <li>Noutatea intră în formă, nu în proiect.</li>
+            <li>Victoria zilei vine doar din sprintul curent.</li>
+            <li>Duminica faci bilanțul: copiezi rezumatul și îl trimiți în proiect.</li>
+          </ol>
+        </div>
+        <div class="card"><h2>Setări</h2>
+          <label class="lbl" for="s-ego">Numele alter ego-ului</label>
+          <input type="text" id="s-ego" maxlength="40">
+          <label class="lbl" for="s-future">Propoziția despre viitor</label>
+          <textarea id="s-future" maxlength="240" placeholder="La prezent, ca și cum s-a întâmplat deja"></textarea>
+          <label class="lbl" for="s-start">Prima zi</label>
+          <input type="date" id="s-start">
+          <label class="lbl" for="s-sw">Greutatea de start (kg)</label>
+          <input type="number" id="s-sw" inputmode="decimal" step="0.1" min="30" max="300">
+          <button class="linkbtn" id="logout">Ieși din cont pe acest telefon</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-parcare">
+    <div class="cols">
+      <div class="card"><h2>Parcarea de idei</h2>
+        <p class="hint" style="margin:0 0 12px">O idee nouă? O scrii aici într-un rând și te întorci la lucru. Parcarea se deschide la bilanț, iar atunci alegi cel mult una.</p>
+        <form id="ideaform" class="row"><input type="text" id="ideain" maxlength="200" placeholder="Ideea, într-un rând" aria-label="Ideea nouă"><button class="btn" type="submit">Parchează</button></form>
+        <p class="hint" id="ideacount"></p>
+        <div id="idealist"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+{
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const ds=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const p=String(s).split('-').map(Number);return new Date(p[0],p[1]-1,p[2])};
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return ds(d)};
+const diff=(a,b)=>Math.round((parse(b)-parse(a))/864e5);
+const fmt=n=>Math.round(n).toLocaleString('ro-RO');
+const kg=n=>(Math.round(n*10)/10).toLocaleString('ro-RO',{maximumFractionDigits:1});
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const longDate=s=>cap(parse(s).toLocaleDateString('ro-RO',{weekday:'long',day:'numeric',month:'long'}));
+const shortDate=s=>parse(s).toLocaleDateString('ro-RO',{day:'numeric',month:'short'});
+const zile=n=>{const r=Math.abs(n)%100;return n===1?'1 zi':(n>=20&&(r===0||r>=20)?n+' de zile':n+' zile')};
+const num=v=>v===null||v===undefined||v===''||isNaN(+v)?null:+v;
+const TOTAL=91;
+const DEF={start:'2026-11-30',startWeight:null,alterEgo:'',future:''};
+const SPR=[
+  {id:'s1',code:'S1',name:'Oferta',w:[1,2],gata:'one-pager-ul e scris și l-ai citit cu voce tare unui om',items:['One-pager: pentru cine, problema, ce primește, în cât timp, prețul (ipoteză)','Pitch-ul de 30 de secunde (name, same, fame, aim, game)','Titlul și secțiunea About pe LinkedIn, rescrise pe ofertă','Lista cu 30 de oameni de contactat','Celelalte proiecte mutate în parcare']},
+  {id:'s2',code:'S2',name:'Studiul de caz',w:[3,4],gata:'studiul de caz e publicat',items:['Aleg cel mai bun rezultat obținut pentru un client','Scriu metoda pas cu pas, cu nume și o schemă','Public studiul de caz pe LinkedIn','Primele 4 conversații din lista de 30']},
+  {id:'s3',code:'S3',name:'Pagina',w:[5,6],gata:'linkul merge și l-ai trimis la 5 oameni',items:['O pagină: oferta, studiul de caz, programare la o discuție de 20 de minute (cel mult o zi de lucru)','4 conversații','Linkul trimis la 5 oameni din listă']},
+  {id:'s4',code:'S4',name:'Conversații',w:[7,8],gata:'14 conversații în total și prețul revizuit',items:['6 conversații de diagnostic (4 întrebări + 3 de preț)','Oferta și prețul ajustate după ce am auzit','Lista cu 5–10 podcasturi mici de nișă','Primele 3 mesaje trimise către podcasturi']},
+  {id:'s5',code:'S5',name:'Propuneri',w:[9,10],gata:'3 propuneri cu preț fix trimise',items:['3 propuneri cu preț fix trimise','Al doilea studiu de caz, mai scurt','4 conversații']},
+  {id:'s6',code:'S6',name:'Primul client',w:[11,12],gata:'contract semnat sau bani încasați',items:['Follow-up la toate propunerile','2 conversații noi','1 client semnat (sau un pilot plătit, cu recomandare scrisă)','Prima apariție în podcast programată']},
+  {id:'b',code:'B',name:'Bilanț',w:[13,13],gata:'planul pentru următoarele 90 de zile e scris',items:['Citesc cifrele din tracker','Ce a mers, ce n-a mers, ce păstrez','Aleg cel mult o idee din parcare','Scriu următoarele 90 de zile']}
+];
+const TARGET=[['posts','Postări LinkedIn',22],['convos','Conversații',20],['proposals','Propuneri trimise',3],['clients','Clienți plătitori',1]];
+const COUNTERS=[['posts','Postări LinkedIn'],['convos','Conversații'],['proposals','Propuneri trimise'],['clients','Clienți semnați'],['strength','Sesiuni de forță']];
+const empty=()=>({settings:{...DEF},days:{},weeks:{},sprints:{done:{}},ideas:{}});
+let today=ds(new Date());
+let S=empty(),sel=today,undo=null,vapidKey=null;
+const pend={},busy={},tm={};
+
+const start=()=>/^\d{4}-\d{2}-\d{2}$/.test(S.settings.start||'')?S.settings.start:DEF.start;
+const dayNo=s=>diff(start(),s)+1;
+const weekNo=s=>Math.floor((dayNo(s)-1)/7)+1;
+const target=w=>w<=2?4000:w<=5?5500:w<=9?7000:8500;
+const sprintOf=w=>SPR.find(p=>w>=p.w[0]&&w<=p.w[1]);
+const day=s=>S.days[s]||{};
+const week=n=>S.weeks[n]||{};
+function score(s){const d=day(s);let n=0;if(d.breath)n++;if(d.future)n++;if(d.winDone)n++;if(d.focus)n++;if(d.walk)n++;if((num(d.steps)||0)>=target(weekNo(s)))n++;return n}
+function streaks(){let run=0,best=0;const n=Math.min(TOTAL,dayNo(today));for(let i=0;i<n;i++){const s=addDays(start(),i);if(day(s).winDone){run++;if(run>best)best=run}else if(s!==today)run=0}return{cur:run,best}}
+
+/* ---------- date: server + copie pe telefon ---------- */
+function apply(t,id,v){
+  if(id==='settings')t.settings={...DEF,...(v||{})};
+  else if(id==='sprints')t.sprints={done:{...((v&&v.done)||{})}};
+  else if(id.startsWith('d-')){if(v)t.days[id.slice(2)]=v;else delete t.days[id.slice(2)]}
+  else if(id.startsWith('w-')){if(v)t.weeks[id.slice(2)]=v;else delete t.weeks[id.slice(2)]}
+  else if(id.startsWith('i-')){if(v)t.ideas[id]=v;else delete t.ideas[id]}
+}
+function status(t,warn){const el=$('status');el.textContent=t||'';el.className='status'+(warn?' warn':'')}
+function cache(){try{localStorage.setItem('tracker90-cache',JSON.stringify(S))}catch(e){}}
+function fromCache(){try{const v=JSON.parse(localStorage.getItem('tracker90-cache')||'null');if(v&&typeof v==='object')S={settings:{...DEF,...(v.settings||{})},days:v.days||{},weeks:v.weeks||{},sprints:{done:{...((v.sprints&&v.sprints.done)||{})}},ideas:v.ideas||{}}}catch(e){}}
+async function api(path,opts){
+  const r=await fetch(path,{credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},...(opts||{})});
+  let data=null;try{data=await r.json()}catch(e){}
+  return {ok:r.ok,status:r.status,data};
+}
+function showLogin(){$('login').hidden=false;setTimeout(()=>{try{$('pw').focus()}catch(e){}},50)}
+async function load(){
+  if(Object.keys(pend).length)return;
+  let r;try{r=await api('/api/data')}catch(e){status('Fără internet. Vezi ultimele date salvate pe telefon.',true);return}
+  if(r.status===401){showLogin();return}
+  if(!r.ok||!r.data){status('Serverul nu răspunde acum. Mai încearcă puțin mai târziu.',true);return}
+  vapidKey=r.data.vapidPublicKey||null;
+  const n=empty();for(const [id,v] of Object.entries(r.data.docs||{}))apply(n,id,v);for(const id in pend)apply(n,id,pend[id]);
+  S=n;cache();$('login').hidden=true;today=ds(new Date());render();renderNotif();
+  if($('status').className==='status')status('');
+}
+function put(id,v){apply(S,id,v);cache();render();pend[id]=v;clearTimeout(tm[id]);tm[id]=setTimeout(()=>flush(id),500)}
+async function flush(id){
+  if(busy[id]||!(id in pend))return;
+  const v=pend[id];busy[id]=true;status('Se salvează…');
+  let r=null;try{r=await api('/api/data',{method:'POST',body:JSON.stringify({id,value:v})})}catch(e){}
+  busy[id]=false;
+  if(!r){status('Nesalvat încă: nu e internet. Salvez singur când revine.',true);return}
+  if(r.status===401){showLogin();return}
+  if(!r.ok){status('Ultima modificare nu s-a salvat. Mai încearcă o dată.',true);return}
+  if(pend[id]===v)delete pend[id];
+  if(id in pend)flush(id);else if(!Object.keys(pend).length)status('Salvat.');
+}
+const flushAll=()=>{for(const id in pend)flush(id)};
+function setVal(id,v){const el=$(id);if(document.activeElement!==el)el.value=v==null?'':v}
+function updDay(p){put('d-'+sel,{...day(sel),...p,date:sel})}
+function updWeek(p){const w=weekNo(sel);put('w-'+w,{...week(w),...p,week:w})}
+function updSettings(p){put('settings',{...S.settings,...p})}
+
+/* ---------- afișare ---------- */
+function renderBand(){
+  const dn=dayNo(today),st=streaks();
+  let h,sub;
+  if(dn<1){h=dn===0?'Începi mâine':'Începi în '+zile(1-dn);sub='Prima zi e '+longDate(start()).toLowerCase()+'. Până atunci, completează setările din Plan.'}
+  else if(dn>TOTAL){h='Gata, 90 de zile';sub='E timpul pentru bilanț și pentru următoarele 90.'}
+  else{const p=sprintOf(weekNo(today));h='Ziua '+dn;sub='Sprint '+p.code+' · '+p.name+' · până pe '+shortDate(addDays(start(),p.w[1]*7-1))}
+  $('headline').textContent=h;$('subline').textContent=sub;
+  $('left').textContent=dn<1?'91 de zile în plan':dn>TOTAL?'Terminat':'Mai sunt '+zile(TOTAL-dn);
+  $('streak').textContent=zile(st.cur);$('best').textContent=zile(st.best);
+  let g='';
+  for(let i=0;i<TOTAL;i++){
+    const s=addDays(start(),i),fut=s>today,sc=fut?0:score(s);
+    const bg=sc?' style="background:rgba(94,234,212,'+(0.2+sc/6*0.8).toFixed(2)+')"':'';
+    g+='<button class="cell'+(s===today?' today':'')+(s===sel?' sel':'')+'" data-d="'+s+'"'+bg+(fut?' disabled':'')+' aria-label="'+esc(longDate(s))+': '+sc+' din 6"></button>';
+  }
+  $('grid').innerHTML=g;
+  const cw=weekNo(today);
+  $('sprintline').innerHTML=SPR.map(p=>'<span'+(cw>=p.w[0]&&cw<=p.w[1]?' class="cur"':'')+'>'+p.code+'</span>').join('');
+}
+function renderDay(){
+  const d=day(sel),w=weekNo(sel),dn=dayNo(sel),t=target(w),st=num(d.steps)||0;
+  $('datelabel').textContent=longDate(sel)+(sel===today?', azi':'');
+  $('dateinfo').textContent=dn<1?'Înainte de start':dn>TOTAL?'După cele 90 de zile':'Ziua '+dn+' · săptămâna '+w;
+  $('score').textContent=score(sel)+' din 6';
+  $('prev').disabled=sel<=addDays(start(),-14);$('next').disabled=sel>=today;
+  $('c-breath').checked=!!d.breath;$('c-future').checked=!!d.future;$('c-win').checked=!!d.winDone;$('c-focus').checked=!!d.focus;$('c-walk').checked=!!d.walk;
+  setVal('win',d.win||'');setVal('note',d.note||'');setVal('steps',num(d.steps));
+  $('smeter').className='meter'+(st>=t?' done':'');$('smeter').firstChild.style.width=Math.min(100,st/t*100)+'%';
+  const src=d.stepsSource==='health'?'Din Health. ':'';
+  $('shint').textContent=src+(st>=t?'Ținta de '+fmt(t)+' e atinsă.':'Ținta pe săptămâna asta: '+fmt(t)+'. Mai ai '+fmt(t-st)+'.');
+  $('wktitle').textContent=w>=1&&w<=13?'Săptămâna '+w+' din 13':'Înainte de start';
+  setVal('weight',num(week(w).weight));
+  $('counters').innerHTML=COUNTERS.map(([k,l])=>'<div class="counter"><span>'+l+'</span><button class="iconbtn" data-k="'+k+'" data-n="-1" aria-label="'+l+': minus unu">−</button><output>'+(num(week(w)[k])||0)+'</output><button class="iconbtn" data-k="'+k+'" data-n="1" aria-label="'+l+': plus unu">+</button></div>').join('');
+  const s=S.settings,who=$('who');
+  if(s.alterEgo||s.future){who.innerHTML=(s.alterEgo?'<p class="ego">Azi intri în rol ca '+esc(s.alterEgo)+'.</p>':'')+(s.future?'<p class="fut">„'+esc(s.future)+'”</p>':'')}
+  else who.innerHTML='<p class="ego">Încă n-ai ales alter ego-ul.</p><p class="fut">Numele, cele 3 calități și propoziția despre viitor fac rutina să funcționeze.</p><button class="linkbtn" data-go="plan">Completează în Setări</button>';
+}
+function renderProgress(){
+  const n=Math.max(0,Math.min(TOTAL,dayNo(today)));
+  const last=[];for(let i=0;i<7;i++){const v=num(day(addDays(today,-i)).steps);if(v!==null)last.push(v)}
+  const avg=last.length?last.reduce((a,b)=>a+b,0)/last.length:null,tNow=target(weekNo(today));
+  $('k-steps').textContent=avg===null?'—':fmt(avg);$('k-steps-t').textContent='ținta acum: '+fmt(tNow);
+  $('h-steps').textContent=avg===null?'Pași pe zi':'Pași pe zi: media pe 7 zile e '+fmt(avg)+(avg>=tNow?', peste țintă':', ținta e '+fmt(tNow));
+  const wts=[];for(let w=1;w<=13;w++){const v=num(week(w).weight);if(v!==null)wts.push({w,v})}
+  const sw=num(S.settings.startWeight)!==null?num(S.settings.startWeight):(wts[0]?wts[0].v:null);
+  if(sw!==null&&wts.length){const dlt=wts[wts.length-1].v-sw;const txt=(dlt<0?'−':dlt>0?'+':'')+kg(Math.abs(dlt))+' kg';$('k-w').textContent=txt;$('h-w').textContent='Greutate: '+txt+' de la start'}
+  else{$('k-w').textContent='—';$('h-w').textContent='Greutate pe săptămâni'}
+  $('k-w-t').textContent=sw===null?'ținta: între −5 și −7 kg':'start '+kg(sw)+' kg · ținta: între −5 și −7 kg';
+  let wins=0,rut=0;for(let i=0;i<n;i++){const d=day(addDays(start(),i));if(d.winDone)wins++;if(d.breath&&d.future)rut++}
+  $('k-wins').textContent=wins;$('k-wins-t').textContent=n?'din '+zile(n):'începe la ziua 1';$('k-rut').textContent=rut;
+  const tot={};for(const k in S.weeks)for(const [key] of TARGET)tot[key]=(tot[key]||0)+(num(S.weeks[k][key])||0);
+  const items=SPR.reduce((a,p)=>a+p.items.length,0),done=Object.values(S.sprints.done).filter(Boolean).length;
+  const rows=TARGET.map(([k,l,t])=>[l,tot[k]||0,t]).concat([['Livrabile din sprinturi',done,items]]);
+  $('brandbars').innerHTML=rows.map(([l,v,t])=>'<div class="bar'+(v>=t?' full':'')+'"><span>'+l+'</span><div class="track"><i style="width:'+Math.min(100,v/t*100)+'%"></i></div><b>'+v+' / '+t+'</b></div>').join('');
+  drawSteps();drawWeight();
+}
+let geo=null;
+function drawSteps(){
+  const box=$('f-steps'),svg=box.querySelector('svg'),W=box.clientWidth,H=box.clientHeight;if(!W)return;
+  const L=46,R=8,T=12,B=24,iw=W-L-R,ih=H-T-B,bw=iw/TOTAL;
+  const vals=[];for(let i=0;i<TOTAL;i++){const s=addDays(start(),i);vals.push({s,v:s<=today?num(day(s).steps):null})}
+  const top=Math.ceil(Math.max(10000,...vals.map(o=>o.v||0))/2000)*2000,y=v=>T+ih-v/top*ih;
+  let h='';
+  for(const t of [0,top/2,top]){h+='<line class="gl" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(t)+'" y2="'+y(t)+'"/><text x="'+(L-6)+'" y="'+(y(t)+4)+'" text-anchor="end">'+(t?fmt(t/1000)+'k':'0')+'</text>'}
+  vals.forEach((o,i)=>{if(o.v===null)return;const ok=o.v>=target(Math.floor(i/7)+1);h+='<rect class="b'+(ok?' ok':'')+'" x="'+(L+i*bw+bw*.15).toFixed(1)+'" y="'+y(Math.min(o.v,top)).toFixed(1)+'" width="'+Math.max(1,bw*.7).toFixed(1)+'" height="'+Math.max(0,T+ih-y(Math.min(o.v,top))).toFixed(1)+'" rx="1"/>'});
+  let p='';for(let w=1;w<=13;w++){const x0=L+(w-1)*7*bw,x1=L+w*7*bw,yy=y(target(w)).toFixed(1);p+=(w===1?'M':'L')+x0.toFixed(1)+' '+yy+'L'+x1.toFixed(1)+' '+yy}
+  h+='<path class="tgt" d="'+p+'"/>';
+  SPR.forEach(s=>{h+='<text x="'+(L+(s.w[0]-1)*7*bw+2).toFixed(1)+'" y="'+(H-6)+'">'+s.code+'</text>'});
+  svg.innerHTML=h;geo={L,bw,vals};
+}
+function drawWeight(){
+  const box=$('f-w'),svg=box.querySelector('svg'),W=box.clientWidth,H=box.clientHeight;if(!W)return;
+  const pts=[];for(let w=1;w<=13;w++){const v=num(week(w).weight);if(v!==null)pts.push({w,v})}
+  const sw=num(S.settings.startWeight)!==null?num(S.settings.startWeight):(pts[0]?pts[0].v:null);
+  if(sw===null){svg.innerHTML='';$('r-w').textContent='Notează greutatea luni dimineață, în cardul săptămânii din Azi, și apare aici.';return}
+  const L=46,R=46,T=12,B=24,iw=W-L-R,ih=H-T-B;
+  const lo=Math.floor(Math.min(sw-6.5,...pts.map(p=>p.v-.5))),hi=Math.ceil(Math.max(sw+1,...pts.map(p=>p.v+.5)));
+  const x=w=>L+(w-1)/12*iw,y=v=>T+(hi-v)/(hi-lo)*ih,stp=hi-lo>12?4:2;
+  let h='';
+  for(let v=Math.ceil(lo/stp)*stp;v<=hi;v+=stp)h+='<line class="gl" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v).toFixed(1)+'" y2="'+y(v).toFixed(1)+'"/><text x="'+(L-6)+'" y="'+(y(v)+4).toFixed(1)+'" text-anchor="end">'+v+'</text>';
+  h+='<line class="tgt" x1="'+x(1)+'" y1="'+y(sw).toFixed(1)+'" x2="'+x(13)+'" y2="'+y(sw-6).toFixed(1)+'"/><text x="'+(x(13)+4)+'" y="'+(y(sw-6)+4).toFixed(1)+'">țintă</text>';
+  if(pts.length){h+='<path class="ln" d="'+pts.map((p,i)=>(i?'L':'M')+x(p.w).toFixed(1)+' '+y(p.v).toFixed(1)).join('')+'"/>';pts.forEach(p=>{h+='<circle class="dot" cx="'+x(p.w).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="5"/>'});const lp=pts[pts.length-1];h+='<text x="'+(x(lp.w)+8).toFixed(1)+'" y="'+(y(lp.v)-8).toFixed(1)+'">'+kg(lp.v)+'</text>'}
+  for(const w of [1,4,7,10,13])h+='<text x="'+x(w).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">'+(w===1?'săpt. 1':w)+'</text>';
+  svg.innerHTML=h;
+  $('r-w').textContent=pts.length?'Ultima: '+kg(pts[pts.length-1].v)+' kg, în săptămâna '+pts[pts.length-1].w+'. Linia punctată e ritmul de 0,5 kg pe săptămână.':'Start: '+kg(sw)+' kg. Linia punctată e ritmul de 0,5 kg pe săptămână.';
+}
+function renderPlan(){
+  const cw=weekNo(today);
+  $('sprintlist').innerHTML=SPR.map(p=>{
+    const from=addDays(start(),(p.w[0]-1)*7),to=addDays(start(),p.w[1]*7-1),cur=cw>=p.w[0]&&cw<=p.w[1];
+    const done=p.items.filter((_,i)=>S.sprints.done[p.id+'-'+i]).length;
+    return '<div class="sprint'+(cur?' cur':'')+'"><div class="sh"><h3>'+p.code+' · '+esc(p.name)+'</h3><span class="when">'+shortDate(from)+' – '+shortDate(to)+'</span></div><p class="gata">Gata înseamnă: '+esc(p.gata)+'. Bifate: '+done+' din '+p.items.length+'.</p>'+
+      p.items.map((t,i)=>{const k=p.id+'-'+i;return '<label class="check"><input type="checkbox" data-k="'+k+'"'+(S.sprints.done[k]?' checked':'')+'><span>'+esc(t)+'</span></label>'}).join('')+'</div>';
+  }).join('');
+  const s=S.settings;setVal('s-ego',s.alterEgo);setVal('s-future',s.future);setVal('s-start',start());setVal('s-sw',num(s.startWeight));
+}
+function renderIdeas(){
+  const list=Object.entries(S.ideas).sort((a,b)=>(num(b[1].at)||0)-(num(a[1].at)||0));
+  $('ideacount').textContent=list.length?(list.length===1?'O idee parcată.':list.length+(list.length>=20?' de idei parcate.':' idei parcate.')):'';
+  $('idealist').innerHTML=list.length?list.map(([id,v])=>'<div class="idea"><p>'+esc(v.text)+'</p><time>'+esc(v.date?shortDate(v.date):'')+'</time><button class="iconbtn" data-del="'+esc(id)+'" aria-label="Șterge ideea">×</button></div>').join(''):'<p class="empty">Nicio idee parcată încă. Când apare una, o scrii aici și te întorci la lucru.</p>';
+  if(undo){$('ideacount').innerHTML=esc($('ideacount').textContent)+' <button class="linkbtn" id="undo">Anulează ștergerea</button>'}
+}
+function render(){renderBand();renderDay();renderProgress();renderPlan();renderIdeas()}
+
+/* ---------- rezumatul de duminică ---------- */
+function summary(){
+  const w=Math.max(1,Math.min(13,weekNo(today))),from=addDays(start(),(w-1)*7),to=addDays(from,6),st=streaks();
+  const L=['Tracker 90, săptămâna '+w+' ('+shortDate(from)+' – '+shortDate(to)+')',''];
+  const p=sprintOf(w);if(p){const dn=p.items.filter((_,i)=>S.sprints.done[p.id+'-'+i]).length;L.push('Sprint '+p.code+' '+p.name+': '+dn+' din '+p.items.length+' livrabile bifate.')}
+  L.push('Seria de victorii: '+zile(st.cur)+' (cea mai lungă: '+zile(st.best)+').','','Zilele:');
+  const notes=[];let stepsSum=0,stepsN=0;
+  for(let i=0;i<7;i++){const s=addDays(from,i);if(s>today)break;const d=day(s),v=num(d.steps);if(v!==null){stepsSum+=v;stepsN++}
+    const ck=[d.breath&&'respirație',d.future&&'viitorul',d.focus&&'focus',d.walk&&'mers'].filter(Boolean).join(', ')||'nimic bifat';
+    L.push('- '+longDate(s)+': '+score(s)+'/6. Pași: '+(v===null?'—':fmt(v))+'. Victoria: '+(d.win?d.win+(d.winDone?' (făcută)':' (nefăcută)'):'—')+'. Bifat: '+ck+'.');
+    if(d.note)notes.push('- '+shortDate(s)+': '+d.note)}
+  L.push('','Media pașilor: '+(stepsN?fmt(stepsSum/stepsN):'—')+' (ținta '+fmt(target(w))+').');
+  const wk=week(w);L.push('Greutate: '+(num(wk.weight)===null?'nenotată':kg(num(wk.weight))+' kg')+(num(S.settings.startWeight)!==null?' (start '+kg(num(S.settings.startWeight))+' kg)':'')+'.');
+  L.push('Săptămâna asta: '+COUNTERS.map(([k,l])=>l+' '+(num(wk[k])||0)).join(', ')+'.');
+  const tot={};for(const k in S.weeks)for(const [key] of TARGET)tot[key]=(tot[key]||0)+(num(S.weeks[k][key])||0);
+  L.push('Total până acum: '+TARGET.map(([k,l,t])=>l+' '+(tot[k]||0)+'/'+t).join(', ')+'.');
+  if(notes.length)L.push('','Notele de seară:',...notes);
+  L.push('','Idei parcate: '+Object.keys(S.ideas).length+'.');
+  return L.join('\n');
+}
+
+/* ---------- notificări ---------- */
+const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const b64u=s=>{const p='='.repeat((4-s.length%4)%4);const b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(b,c=>c.charCodeAt(0))};
+const swReady=()=>Promise.race([navigator.serviceWorker.ready,new Promise((_,rej)=>setTimeout(()=>rej(new Error('Service worker-ul nu pornește.')),4000))]);
+async function renderNotif(){
+  const t=$('notiftext'),b=$('notifbtns');
+  $('installhint').hidden=!(isIOS&&!isStandalone());
+  if(isIOS&&!isStandalone()){t.textContent='Pe iPhone, notificările merg doar din aplicația de pe ecranul principal. În Safari: Share, apoi Add to Home Screen, și o deschizi de pe iconiță.';b.innerHTML='';return}
+  if(!('serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window)){t.textContent='Browserul ăsta nu primește notificări push.';b.innerHTML='';return}
+  if(!vapidKey){t.textContent='Pe server lipsesc cheile pentru notificări (VAPID_PUBLIC_KEY și VAPID_PRIVATE_KEY în Vercel).';b.innerHTML='';return}
+  if(Notification.permission==='denied'){t.textContent='Notificările sunt blocate. Le pornești din Setări, Notificări, Tracker 90.';b.innerHTML='';return}
+  let sub=null;try{const reg=await swReady();sub=await reg.pushManager.getSubscription()}catch(e){}
+  if(sub&&Notification.permission==='granted'){t.textContent='Pornite: rutina dimineața, mersul la prânz, bifatul seara.';b.innerHTML='<button class="btn ghost" id="ntest">Trimite o notificare de test</button>'}
+  else{t.textContent='Primești 3 mementouri pe zi: rutina dimineața, mersul la prânz, bifatul seara.';b.innerHTML='<button class="btn" id="non">Pornește notificările</button>'}
+}
+async function enablePush(){
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){status('Notificările n-au fost permise.',true);renderNotif();return}
+    const reg=await swReady();
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(vapidKey)});
+    const r=await api('/api/subscribe',{method:'POST',body:JSON.stringify({subscription:sub.toJSON()})});
+    status(r.ok?'Notificările sunt pornite.':'Abonarea nu s-a salvat pe server.',!r.ok);
+  }catch(e){status('Nu s-au putut porni notificările: '+(e&&e.message||e),true)}
+  renderNotif();
+}
+
+/* ---------- navigare și evenimente ---------- */
+function show(v){
+  if(!['azi','progres','plan','parcare'].includes(v))v='azi';
+  for(const t of document.querySelectorAll('.tab'))t.setAttribute('aria-selected',t.dataset.v===v?'true':'false');
+  for(const s of document.querySelectorAll('.view'))s.classList.toggle('on',s.id==='v-'+v);
+}
+function go(v){if(location.hash!=='#'+v)location.hash=v;else show(v)}
+addEventListener('hashchange',()=>show(location.hash.slice(1)));
+for(const t of document.querySelectorAll('.tab'))t.addEventListener('click',()=>go(t.dataset.v));
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b)go(b.dataset.go)});
+$('grid').addEventListener('click',e=>{const c=e.target.closest('.cell');if(!c||c.disabled)return;sel=c.dataset.d;render();go('azi')});
+$('prev').addEventListener('click',()=>{sel=addDays(sel,-1);render()});
+$('next').addEventListener('click',()=>{if(sel<today){sel=addDays(sel,1);render()}});
+for(const [id,k] of [['c-breath','breath'],['c-future','future'],['c-win','winDone'],['c-focus','focus'],['c-walk','walk']])$(id).addEventListener('change',e=>updDay({[k]:e.target.checked}));
+$('win').addEventListener('input',e=>updDay({win:e.target.value}));
+$('note').addEventListener('input',e=>updDay({note:e.target.value}));
+$('steps').addEventListener('input',e=>{const v=num(e.target.value);updDay({steps:v===null?null:Math.max(0,Math.round(v)),stepsSource:'manual'})});
+$('sminus').addEventListener('click',()=>updDay({steps:Math.max(0,(num(day(sel).steps)||0)-500),stepsSource:'manual'}));
+$('splus').addEventListener('click',()=>updDay({steps:(num(day(sel).steps)||0)+500,stepsSource:'manual'}));
+$('weight').addEventListener('input',e=>updWeek({weight:num(e.target.value)}));
+$('counters').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(!b)return;const k=b.dataset.k,w=week(weekNo(sel));updWeek({[k]:Math.max(0,(num(w[k])||0)+Number(b.dataset.n))})});
+$('sprintlist').addEventListener('change',e=>{const k=e.target.dataset.k;if(k)put('sprints',{done:{...S.sprints.done,[k]:e.target.checked}})});
+$('s-ego').addEventListener('input',e=>updSettings({alterEgo:e.target.value}));
+$('s-future').addEventListener('input',e=>updSettings({future:e.target.value}));
+$('s-start').addEventListener('change',e=>{if(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value))updSettings({start:e.target.value})});
+$('s-sw').addEventListener('input',e=>updSettings({startWeight:num(e.target.value)}));
+$('ideaform').addEventListener('submit',e=>{e.preventDefault();const inp=$('ideain'),t=inp.value.trim();if(!t)return;undo=null;put('i-'+Date.now(),{text:t,at:Date.now(),date:today});inp.value='';inp.focus()});
+$('idealist').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;const id=b.dataset.del;undo={id,v:S.ideas[id]};put(id,null)});
+$('ideacount').addEventListener('click',e=>{if(e.target.id==='undo'&&undo){const u=undo;undo=null;put(u.id,u.v)}});
+$('notifbtns').addEventListener('click',async e=>{
+  if(e.target.id==='non')enablePush();
+  if(e.target.id==='ntest'){status('Trimit testul…');try{const r=await api('/api/subscribe',{method:'POST',body:JSON.stringify({test:true})});status(r.ok&&r.data&&r.data.sent?'Testul a plecat. Ar trebui să apară în câteva secunde.':'Testul n-a plecat'+(r.data&&r.data.error?': '+r.data.error:'.'),!(r.ok&&r.data&&r.data.sent))}catch(err){status('Fără internet.',true)}}
+});
+$('copysum').addEventListener('click',async()=>{
+  const txt=summary(),box=$('sumbox');
+  try{await navigator.clipboard.writeText(txt);status('Rezumatul e copiat. Lipește-l în proiect.');box.hidden=true}
+  catch(e){box.hidden=false;box.value=txt;box.focus();box.select();status('Selectează textul de mai jos și copiază-l.')}
+});
+$('logout').addEventListener('click',async()=>{try{await api('/api/login',{method:'DELETE'})}catch(e){}try{localStorage.removeItem('tracker90-cache')}catch(e){}S=empty();render();showLogin()});
+$('loginform').addEventListener('submit',async e=>{
+  e.preventDefault();$('loginerr').textContent='';
+  let r;try{r=await api('/api/login',{method:'POST',body:JSON.stringify({password:$('pw').value})})}catch(err){$('loginerr').textContent='Fără internet.';return}
+  if(!r.ok){$('loginerr').textContent=(r.data&&r.data.error)||'Nu merge.';return}
+  $('pw').value='';$('login').hidden=true;load();
+});
+const tip=e=>{if(!geo)return;const r=e.currentTarget.getBoundingClientRect(),i=Math.floor((e.clientX-r.left-geo.L)/geo.bw);if(i<0||i>=TOTAL)return;const o=geo.vals[i];$('r-steps').textContent=longDate(o.s)+': '+(o.v===null?'nimic notat':fmt(o.v)+' pași')+' · ținta '+fmt(target(Math.floor(i/7)+1));};
+$('f-steps').addEventListener('pointermove',tip);$('f-steps').addEventListener('click',tip);
+const ro=new ResizeObserver(()=>{drawSteps();drawWeight()});ro.observe($('f-steps'));ro.observe($('f-w'));
+addEventListener('online',flushAll);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')return;const t=ds(new Date());if(t!==today){if(sel===today)sel=t;today=t}if(Object.keys(pend).length)flushAll();else load()});
+
+show(location.hash.slice(1));fromCache();render();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+load();
+}
+</script>
+</body>
+</html>
